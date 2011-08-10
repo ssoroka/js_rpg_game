@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<script src="jquery-latest.js"></script>
+<link rel="stylesheet" href="qunit.css" type="text/css" media="screen" />
+<script type="text/javascript" src="qunit.js"></script>
+<script>
+
+Character = function() {
+  this.x = 7;
+  this.y = 7;
+  this.steps = 0;
+}
+
+Character.prototype = {
+  moveRight: function() {
+    this.x += 1;
+    this.steps += 1;
+  },
+  moveLeft: function() {
+    this.x -= 1;
+    this.steps += 1;
+  },
+  moveUp: function() {
+    this.y -= 1;
+    this.steps += 1;
+  },
+  moveDown: function() {
+    this.y += 1;
+    this.steps += 1;
+  }
+  
+}
+
+Game = function() {
+  this.TileSize = 54;
+  this.ViewportWidth = 16;
+  this.ViewportHeight = 16;
+  this.AnimationSpeed = 60; // 60 = 16fps
+  this.canvas = document.getElementById("output");
+  this.context = this.canvas.getContext("2d");
+  this.lastTick = new Date().getTime();
+  // this.numToHex = {0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: 'a', 11: 'b', 12: 'c', 13: 'd', 14: 'e', 15: 'f'};
+  this.character = new Character();
+};
+
+Game.prototype = {
+  draw: function() {
+    // reset canvas
+    this.canvas.width = this.ViewportWidth * this.TileSize;
+
+    // draw map layer
+    for (var i=0; i < this.ViewportWidth; i++) {
+      for (var j=0; j < this.ViewportHeight; j++) {
+        this.context.fillStyle = this.randColor();
+        // if (this.rand(10) == 0) {
+        //   this.context.fillRect(i * this.TileSize, j * this.TileSize, this.TileSize, this.TileSize);
+        //   this.context.font = 'bold 54px sans-serif';
+        //   this.context.fillStyle = 'white';
+        //   this.context.fillText(this.rand(2), (i * this.TileSize), (j * this.TileSize) + this.TileSize);
+        // }
+        // else
+          this.context.drawImage($('#grass')[0], i * this.TileSize, j * this.TileSize, this.TileSize, this.TileSize);
+      };
+    };
+
+    // draw character layer
+    this.context.drawImage($('#character')[0], this.character.x * this.TileSize, this.character.y * this.TileSize, this.TileSize, this.TileSize);
+    // this.context.drawImage($('#character')[0], this.character.steps % 2 * 16,  0, 16, 16, this.character.x * this.TileSize, this.character.y * this.TileSize, this.TileSize, this.TileSize);
+
+    // draw fog/filter/transition layer 
+
+  },
+  run: function() {
+    var self = this;
+    this.update(new Date().getTime());
+    this.draw();
+    setTimeout(function() {
+      self.run();
+    }, this.AnimationSpeed);
+  },
+  update: function(newTick) {
+    var elapsed = newTick - this.lastTick;
+    
+    
+    
+    this.lastTick = newTick;
+  },
+  rand: function(n) {
+    return Math.floor(Math.random() * n);
+  },
+  randColor: function() {
+    // return "rgb(" + this.rand(256) + "," + this.rand(256) + "," + this.rand(256) + ")";
+    return "rgb(" + this.rand(0) + "," + this.rand(256) + "," + this.rand(0) + ")";
+  }
+}
+
+function run_tests() {
+  // test("can load a map", function() {
+  //   var map = new Map("random.map");
+  //   
+  // })
+}
+
+$(document).ready(function(){
+  run_tests();
+  
+  game = new Game();
+  game.run();
+});
+
+$(document).keydown(function(e) {
+  if (console) console.log(e.which);
+  switch (e.which) {
+    case 39:
+      game.character.moveRight();
+      e.preventDefault();
+      break;
+    case 37:
+      game.character.moveLeft();
+      e.preventDefault();
+      break;
+    case 38:
+      game.character.moveUp();
+      e.preventDefault();
+      break;
+    case 40:
+      game.character.moveDown();
+      e.preventDefault();
+      break;
+  }
+  
+})
+  
+  </script>
+</head>
+<body>
+ <h2 id="qunit-banner"></h2>
+ <div id="qunit-testrunner-toolbar"></div>
+ <h2 id="qunit-userAgent"></h2>
+ <ol id="qunit-tests"></ol>
+ <div id="qunit-fixture"></div>
+ <canvas id="output" width="1000" height="1000"></canvas>
+ <img src="tiles/floor1.jpg" id="floor1" style='display:none' />
+ <img src="tiles/path.png" id="path" style='display:none' />
+ <img src="tiles/grass.png" id="grass" style='display:none' />
+ <img src="characters/hero.png" id="character" style='display:none' />
+</body>
+</html>
