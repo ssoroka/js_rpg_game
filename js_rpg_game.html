@@ -6,67 +6,137 @@
 <script type="text/javascript" src="qunit.js"></script>
 <script>
 
-Character = function() {
-  this.x = 7;
-  this.y = 7;
+DefaultMap = '{"2,6":"brick","2,7":"brick","2,8":"brick","3,8":"brick","4,8":"brick","2,5":"brick","3,5":"brick","3,4":"brick","3,3":"brick","3,2":"brick","3,1":"floor1","3,0":"floor1","5,8":"brick","6,8":"brick","6,9":"brick","6,10":"brick","6,11":"brick","6,12":"path","6,13":"path","6,14":"path","7,12":"path","7,13":"path","7,14":"path","5,12":"path","5,13":"path","5,14":"path","2,1":"floor1","4,1":"floor1","4,0":"floor1","2,0":"floor1","7,8":"brick","8,8":"brick","9,8":"brick","10,8":"brick","11,8":"brick","12,8":"brick","13,8":"brick","14,8":"brick","11,4":"floor1","11,5":"floor1","12,5":"floor1","13,5":"floor1","13,4":"floor1","12,4":"floor1","12,7":"brick","12,6":"brick","11,3":"floor1","12,3":"floor1","13,3":"floor1"}';
+
+Point = function(x, y) {
+  this.x = x;
+  this.y = y;
+}
+
+Point.prototype = {
+  asString: function() {
+    return "" + this.x + "," + this.y;
+  },
+  plus: function(point) {
+    return new Point(this.x + point.x, this.y + point.y);
+  },
+  minus: function(point) {
+    return new Point(this.x - point.x, this.y - point.y);
+  }
+}
+
+Character = function(game) {
   this.steps = 0;
+  this.game = game;
 }
 
 Character.prototype = {
   moveRight: function() {
-    this.x += 1;
+    this.game.characterPosition.x += 1;
     this.steps += 1;
   },
   moveLeft: function() {
-    this.x -= 1;
+    this.game.characterPosition.x -= 1;
     this.steps += 1;
   },
   moveUp: function() {
-    this.y -= 1;
+    this.game.characterPosition.y -= 1;
     this.steps += 1;
   },
   moveDown: function() {
-    this.y += 1;
+    this.game.characterPosition.y += 1;
     this.steps += 1;
   }
   
 }
 
+Map = function() {
+  this.topLeft = new Point(0,0);
+  this.width = 100;
+  this.height = 100;
+  this.defaultTile = 'grass';
+  this.tileHash = {};
+  this.currentBrush = 'grass';
+}
+
+Map.prototype = {
+  paintTile: function(point) {
+    this.tileHash[point.asString()] = this.currentBrush;
+  },
+  load: function(mapName) {
+    var loadmap = mapName + '.map';
+    var input;
+    if (localStorage)
+      input = localStorage[loadmap];
+    if (!input && mapName == 'default')
+      input = DefaultMap;
+    if (input)
+      this.tileHash = JSON.parse(input);
+    else
+      this.tileHash = {};
+    console.log('loaded map ' + loadmap);
+  },
+  save: function(mapName) {
+    var savemap = mapName + '.map';
+    var out = JSON.stringify(this.tileHash);
+    if (console) console.log(out);
+    if (localStorage) localStorage[savemap] = out;
+    console.log('saved map ' + savemap);
+  }
+}
+
 Game = function() {
   this.TileSize = 54;
-  this.ViewportWidth = 16;
-  this.ViewportHeight = 16;
-  this.AnimationSpeed = 60; // 60 = 16fps
+  this.ViewportWidth = 15;
+  this.ViewportHeight = 15;
+  this.AnimationSpeed = 60; // 60 = roughly 16 fps
   this.canvas = document.getElementById("output");
   this.context = this.canvas.getContext("2d");
   this.lastTick = new Date().getTime();
-  // this.numToHex = {0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: 'a', 11: 'b', 12: 'c', 13: 'd', 14: 'e', 15: 'f'};
-  this.character = new Character();
+  this.character = new Character(this);
+  this.characterPosition = new Point(0, 0);
+  this.keyCodes = {
+    ctrl: 17, option: 18, command: 224, shift: 16,
+    caps: 20, backspace: 8, tab: 9, esc: 27, enter: 13,
+    del: 46, home: 36, end: 35, pgUp: 33, pgDown: 34,
+    left: 37, up: 38, right: 39, down: 40,
+    nul: 0, f13: 44, f14: 145, f15: 19
+  }
+  this.currentMap = new Map();
 };
 
 Game.prototype = {
   draw: function() {
     // reset canvas
     this.canvas.width = this.ViewportWidth * this.TileSize;
-
+    this.canvas.height = this.ViewportHeight * this.TileSize;
+    var tile;
+    
     // draw map layer
     for (var i=0; i < this.ViewportWidth; i++) {
       for (var j=0; j < this.ViewportHeight; j++) {
         this.context.fillStyle = this.randColor();
-        // if (this.rand(10) == 0) {
+        tile = this.currentMap.tileHash[(new Point(i, j)).plus(this.characterPosition).asString()];
+        if (tile) {
         //   this.context.fillRect(i * this.TileSize, j * this.TileSize, this.TileSize, this.TileSize);
         //   this.context.font = 'bold 54px sans-serif';
         //   this.context.fillStyle = 'white';
         //   this.context.fillText(this.rand(2), (i * this.TileSize), (j * this.TileSize) + this.TileSize);
-        // }
-        // else
-          this.context.drawImage($('#grass')[0], i * this.TileSize, j * this.TileSize, this.TileSize, this.TileSize);
+          this.context.drawImage($('#' + tile)[0], i * this.TileSize, j * this.TileSize, this.TileSize, this.TileSize);
+        }
+        else {
+          this.context.drawImage($('#' + this.currentMap.defaultTile)[0], i * this.TileSize, j * this.TileSize, this.TileSize, this.TileSize);
+        }
+        // this.context.font = 'bold 20px sans-serif';
+        // this.context.fillStyle = 'white';
+        // this.context.fillText(i + ',' + j, (i * this.TileSize), (j * this.TileSize) + this.TileSize / 2);
+        tile = null;
       };
     };
 
     // draw character layer
-    this.context.drawImage($('#character')[0], this.character.x * this.TileSize, this.character.y * this.TileSize, this.TileSize, this.TileSize);
-    // this.context.drawImage($('#character')[0], this.character.steps % 2 * 16,  0, 16, 16, this.character.x * this.TileSize, this.character.y * this.TileSize, this.TileSize, this.TileSize);
+    // this.context.drawImage($('#character')[0], this.characterPosition.x * this.TileSize, this.characterPosition.y * this.TileSize, this.TileSize, this.TileSize);
+    this.context.drawImage($('#character')[0], 7 * this.TileSize, 7 * this.TileSize, this.TileSize, this.TileSize);
 
     // draw fog/filter/transition layer 
 
@@ -90,8 +160,22 @@ Game.prototype = {
     return Math.floor(Math.random() * n);
   },
   randColor: function() {
-    // return "rgb(" + this.rand(256) + "," + this.rand(256) + "," + this.rand(256) + ")";
     return "rgb(" + this.rand(0) + "," + this.rand(256) + "," + this.rand(0) + ")";
+  },
+  viewportPointToMapPoint: function(point) {
+    // x, y means x,y on the viewport, which needs to be translated to map x,y.
+    // character is always going to be in the middle position: 7,7
+    // figure out where top left is relative to character pos (position -7,-7)
+    // do some math to figure out the difference between character position in world and map clicked position.
+    return this.characterPosition.plus(point);
+  },
+  listMaps: function() {
+    var maps = [];
+    for (map in localStorage) {
+      if (map.match(/\.map$/))
+        maps.push(map);
+    }
+    alert(maps);
   }
 }
 
@@ -102,48 +186,81 @@ function run_tests() {
   // })
 }
 
+var glob;
 $(document).ready(function(){
   run_tests();
   
   game = new Game();
+  game.currentMap.load('default');
   game.run();
+  
+  $('.tile').bind('click', function(e) {
+    // console.log('current brush: ' + $(e.target).attr('id'));
+    game.currentMap.currentBrush = $(e.target).attr('id');
+  });
+  
+  $(document).keydown(function(e) {
+    // if (console) console.log(e.which);
+    switch (e.which) {
+      case game.keyCodes.right:
+        game.character.moveRight();
+        e.preventDefault();
+        break;
+      case game.keyCodes.left:
+        game.character.moveLeft();
+        e.preventDefault();
+        break;
+      case game.keyCodes.up:
+        game.character.moveUp();
+        e.preventDefault();
+        break;
+      case game.keyCodes.down:
+        game.character.moveDown();
+        e.preventDefault();
+        break;
+    }
+  });
+  
+  $('.load').click(function(e) {
+    game.currentMap.load($('#map_name').val());
+  });
+  
+  $('.save').click(function(e) {
+    game.currentMap.save($('#map_name').val());
+  });
+  
+  $('.list').click(function(e) {
+    game.listMaps();
+  })
+  
+  $('#output').click(function(e) {
+    // x, y means x,y on the viewport, which needs to be translated to map x,y.
+    var tilePoint = new Point(Math.floor(e.offsetX / game.TileSize), Math.floor(e.offsetY / game.TileSize));
+    game.currentMap.paintTile(game.viewportPointToMapPoint(tilePoint));
+  })
 });
-
-$(document).keydown(function(e) {
-  if (console) console.log(e.which);
-  switch (e.which) {
-    case 39:
-      game.character.moveRight();
-      e.preventDefault();
-      break;
-    case 37:
-      game.character.moveLeft();
-      e.preventDefault();
-      break;
-    case 38:
-      game.character.moveUp();
-      e.preventDefault();
-      break;
-    case 40:
-      game.character.moveDown();
-      e.preventDefault();
-      break;
-  }
-  
-})
-  
   </script>
 </head>
 <body>
+ <canvas id="output" width="1000" height="1000"></canvas>
+ <br />
+ <img src="tiles/floor1.jpg" id="floor1" class="tile" style='width:54px; height:54px;' />
+ <img src="tiles/path.png"   id="path"   class="tile" style='' />
+ <img src="tiles/grass.png"  id="grass"  class="tile" style='' />
+ <img src="tiles/brick.png"  id="brick"  class="tile" style='' />
+ 
+ <img src="characters/hero.png" id="character" style='display:none' />
+
+ <br />
+ Map Name:
+ <input id='map_name' value='default' />
+ <button class="load">Load</button>
+ <button class="save">Save</button>
+ <button class="list">List Maps</button>
  <h2 id="qunit-banner"></h2>
  <div id="qunit-testrunner-toolbar"></div>
  <h2 id="qunit-userAgent"></h2>
  <ol id="qunit-tests"></ol>
  <div id="qunit-fixture"></div>
- <canvas id="output" width="1000" height="1000"></canvas>
- <img src="tiles/floor1.jpg" id="floor1" style='display:none' />
- <img src="tiles/path.png" id="path" style='display:none' />
- <img src="tiles/grass.png" id="grass" style='display:none' />
- <img src="characters/hero.png" id="character" style='display:none' />
 </body>
 </html>
